@@ -5,6 +5,8 @@ import connect from '@/lib/mongoose';
 import Users, { User } from '@/models/User';
 import { ObjectId, Types } from 'mongoose';
 
+
+
 /*GET /api/products*/
 export interface ProductsResponse {
   products: Product[];
@@ -26,14 +28,19 @@ export async function getProducts(): Promise<ProductsResponse> {
   };
 }
 
+
+
 /*GET /api/products/[productId]*/
 export interface ProductsResponseId {
   products: Product[];
 }
 
-export async function getProductsId(productId:string): Promise<ProductsResponseId> {
+//Pasamos el parametro necesario
+export async function getProductsId(productId:string): Promise<ProductsResponseId | null> {
+  //Conectamos con la bbdd
   await connect();
 
+  //Creamos proyección de la salida
   const productProjectionId = {
     name: true,
     price: true,
@@ -41,18 +48,23 @@ export async function getProductsId(productId:string): Promise<ProductsResponseI
     synopsis: true,
   };
 
+  //Buscamos los elementos que necesitamos
   const productsId = await Products.findById(productId, productProjectionId);
   
+  //Devolvemos en formato JSON
   return {
     products: productsId,
   };
 }
 
-/* POST /api/users  */
+
+
+/* POST /api/users */
 export interface CreateUserResponse {
     _id: Types.ObjectId | string;
   }
   
+  //Definimos atributos de la creacion
   export async function createUser(user: {
     email: string;
     password: string;
@@ -61,23 +73,28 @@ export interface CreateUserResponse {
     address: string;
     birthdate: Date;
   }): Promise<CreateUserResponse | null> {
+    //Conectamos con la bbdd
     await connect();
   
+    //Comprobamos que no exista ese email
     const prevUser = await Users.find({ email: user.email });
-  
     if (prevUser.length !== 0) {
       return null;
     }
-  
+    
+    //Creamos el doc
     const doc: User = {
-      ...user,
+      ...user, //Cogemos los atributos de User
+      //Añadimos/Modificamos Atributos
       birthdate: new Date(user.birthdate),
       cartItems: [],
       orders: [],
     };
   
+    //Crreamos el usuario
     const newUser = await Users.create(doc);
-  
+    
+    //Devolvemos el Id del nuevo usuario creado
     return {
       _id: newUser._id,
     };
@@ -86,11 +103,12 @@ export interface CreateUserResponse {
 
 /* GET /api/users[userId]  */
 export interface UserResponse {
-    email: string;
-    name: string;
-    surname: string;
-    address: string;
-    birthdate: Date;
+    users: User[];
+    // email: string;
+    // name: string;
+    // surname: string;
+    // address: string;
+    // birthdate: Date;
 }
   
   export async function getUser(userId: string): Promise<UserResponse | null> {
@@ -103,8 +121,10 @@ export interface UserResponse {
       address: true,
       birthdate: true,
     };
+    
     const user = await Users.findById(userId, userProjection);
   
+    //Devolvemos nulo si no encontramos un usuario con es ID
     if (user === null) {
       return null;
     }
