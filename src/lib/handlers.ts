@@ -3,7 +3,7 @@
 import Products, { Product } from '@/models/Product';
 import connect from '@/lib/mongoose';
 import Users, { User } from '@/models/User';
-import { Types } from 'mongoose';
+import { ObjectId, Types } from 'mongoose';
 
 /*GET /api/products*/
 export interface ProductsResponse {
@@ -23,6 +23,28 @@ export async function getProducts(): Promise<ProductsResponse> {
   
   return {
     products: products,
+  };
+}
+
+/*GET /api/products/[productId]*/
+export interface ProductsResponseId {
+  products: Product[];
+}
+
+export async function getProductsId(productId:string): Promise<ProductsResponseId> {
+  await connect();
+
+  const productProjectionId = {
+    name: true,
+    price: true,
+    img: true,
+    synopsis: true,
+  };
+
+  const productsId = await Products.findById(productId, productProjectionId);
+  
+  return {
+    products: productsId,
   };
 }
 
