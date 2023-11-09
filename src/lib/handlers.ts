@@ -1,9 +1,11 @@
 //LOGICA DE LOS ENDPOINTS DE LAS REST APIs
 
-import Products, { Product } from '@/models/Product';
 import connect from '@/lib/mongoose';
 import Users, { User } from '@/models/User';
-import { ObjectId, Types } from 'mongoose';
+import Products, { Product } from '@/models/Product';
+import Orders, { Order } from '@/models/Order';
+import { Types } from 'mongoose';
+
 
 
 
@@ -49,11 +51,15 @@ export async function getProductsId(productId:string): Promise<ProductsResponseI
   };
 
   //Buscamos los elementos que necesitamos
-  const productsId = await Products.findById(productId, productProjectionId);
+  const products = await Products.findById(productId, productProjectionId);
   
+  if (!products) {
+    return null;
+  }
+
   //Devolvemos en formato JSON
   return {
-    products: productsId,
+    products: products,
   };
 }
 
@@ -91,7 +97,7 @@ export interface CreateUserResponse {
       orders: [],
     };
   
-    //Crreamos el usuario
+    //Creamos el usuario
     const newUser = await Users.create(doc);
     
     //Devolvemos el Id del nuevo usuario creado
@@ -101,7 +107,7 @@ export interface CreateUserResponse {
   }
 
 
-/* GET /api/users[userId]  */
+/* GET /api/users/[userId]  */
 export interface UserResponse {
     users: User[];
     // email: string;
@@ -113,6 +119,7 @@ export interface UserResponse {
   
   export async function getUser(userId: string): Promise<UserResponse | null> {
     await connect();
+    
   
     const userProjection = {
       email: true,
@@ -131,3 +138,157 @@ export interface UserResponse {
   
     return user;
   }
+
+
+
+/* GET /api/users/[userId]/cart */
+export interface CartItem {
+  product : {
+    name:string;
+    price: string;
+  }
+  qty: number;
+}
+
+export interface CartUserResponse {
+  cartItems: CartItem[];
+}
+
+export async function getCartUser(userId: string): Promise<CartUserResponse | null> {
+  await connect();
+
+  const cartUserProjection = {
+    'cartItems.product': true,
+    'cartItems.qty': true,
+  };
+  
+  const productProjection = {
+    name:true, 
+    price: true,
+  }
+  
+  const cart = await Users.findById(userId, cartUserProjection).populate("cartItems.product", productProjection);
+
+  if (cart === null) {
+    return null;
+  }
+
+  return cart;
+}
+
+
+
+/* PUT /api/users/[userId]/cart/[productId] */
+export interface ProductCartResponse {
+  cartItems: CartItem[];
+  created: boolean;
+}
+
+export async function updateAddCartItem(
+  userId: string, 
+  productId: string,
+  
+  qty: number
+  ):Promise<ProductCartResponse | null> {
+  await connect();
+  
+  const user = await Users.findById(userId);
+  if (!user) {
+    return null;
+  }
+  const product = await Products.findById(productId);
+  if (!product) {
+    return null;
+  }
+
+  var created;
+
+  const cartItem = user.cartItems.find(
+    (cartItem: any) => cartItem.product._id.equals(productId)
+  );
+
+  if(cartItem){
+    cartItem.qty = qty;
+    created = false;
+  }
+  else {
+    const newCartItem = {
+      //Se crea un nuevo producto
+      product: new Types.ObjectId(productId),
+      //Se le asigna la cantidad
+      qty: qty
+    }
+    //Añadimos el producto al carrito del usuario
+    user.cartItems.push(newCartItem);
+    created = true;
+  }
+
+  //Guardamos la creacion/modificacion
+  await user.save();
+
+  const cartUserProjection = {
+    'cartItems.product': true,
+    'cartItems.qty': true,
+  };
+
+  const productProjection = {
+    name: true,
+    price: true,
+  }
+
+  const cart = await Users.findById(userId,cartUserProjection).populate("cartItems.product",productProjection);
+
+  return {
+    cartItems:cart,
+    created: created
+  }
+}
+
+
+
+/* DELETE /api/users/[userId]/cart/[productId] */
+export interface DeleteProductResponse {
+  cartItems: CartItem[];
+}
+
+export async function deleteCartItem(userId: string, productId: string): Promise<DeleteProductResponse | null> {
+  await connect();
+
+  const user = await Users.findById(userId);
+  if (!user) {
+    return null;
+  }
+  const product = await Products.findById(productId);
+  if (!product) {
+    return null;
+  }
+
+  const deletedProduct = user.cartItems.findIndex(
+    (cartItem: any) => cartItem.product._id.equals(productId)
+  );
+
+  if(deletedProduct !== -1){
+    user.cartItems.splice(deletedProduct,1);
+  }
+
+  await user.save();
+
+  const cartUserProjection = {
+    'cartItems.product': true,
+    'cartItems.qty': true,
+  };
+  
+  const productProjection = {
+    name:true, 
+    price: true,
+  }
+  
+  const cart = await Users.findById(userId, cartUserProjection).populate("cartItems.product", productProjection);
+
+  if (cart === null) {
+    return null;
+  }
+
+  return cart;
+}
+

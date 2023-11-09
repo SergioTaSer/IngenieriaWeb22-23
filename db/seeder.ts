@@ -1,5 +1,6 @@
 import Products, { Product } from '@/models/Product';
 import Users, { User } from '@/models/User';
+import Orders, { Order } from '@/models/Order';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 
@@ -91,7 +92,6 @@ async function seed() {
     .findOne({ email: 'johndoe@example.com' }, userProjection) //Buscamos productos
     .populate('cartItems.product', productProjection); //Le añadimos la informacion de los productos que hay en el cart
   console.log(JSON.stringify(retrievedUser, null, 2));
-
   
 
   await conn.disconnect();
